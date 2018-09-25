@@ -99,6 +99,7 @@ for i,size in ipairs(m.sizes) do
         },
 
         on_construct = init,
+
         on_receive_fields = function(pos, _, fields, sender)
             local meta = minetest.get_meta(pos)
             if minetest.is_protected(pos, sender:get_player_name()) then
@@ -109,6 +110,7 @@ for i,size in ipairs(m.sizes) do
             if fields.label then meta:set_string("label", fields.label) end
             meta:set_string("infotext", label(meta:get_string("label")))
         end,
+
         on_dig = function (pos, node, digger)
             if minetest.is_protected(pos, digger:get_player_name()) then
                 minetest.record_protection_violation(pos, digger:get_player_name())
@@ -118,6 +120,8 @@ for i,size in ipairs(m.sizes) do
             local stack = ItemStack({
                     name = m.nn(size),
             })
+
+            -- Set itemstack data.
             local data = {
                 data = meta:get_string("data") or "",
                 channel = meta:get_string("channel") or "",
@@ -125,6 +129,8 @@ for i,size in ipairs(m.sizes) do
             }
             data.description = label(data.label)
             stack:get_meta():from_table({fields = data})
+
+            -- Standard logic.
             stack = digger:get_inventory():add_item("main", stack)
             if not stack:is_empty() then
                     minetest.item_drop(stack, digger, pos)
@@ -132,39 +138,44 @@ for i,size in ipairs(m.sizes) do
             minetest.remove_node(pos)
             digiline:update_autoconnect(pos)
         end,
-        on_place = function(itemstack, placer, pointed_thing)
-                local plname = placer:get_player_name()
-                local pos = pointed_thing.under
-                local node = minetest.get_node_or_nil(pos)
-                local def = node and minetest.registered_nodes[node.name]
-                if not def or not def.buildable_to then
-                        pos = pointed_thing.above
-                        node = minetest.get_node_or_nil(pos)
-                        def = node and minetest.registered_nodes[node.name]
-                        if not def or not def.buildable_to then return itemstack end
-                end
-                if minetest.is_protected(pos, placer:get_player_name()) then
-                    minetest.record_protection_violation(pos, placer:get_player_name())
-                    return itemstack
-                end
-                local fdir = minetest.dir_to_facedir(placer:get_look_dir())
-                minetest.set_node(pos, {
-                        name = m.nn(size),
-                        param2 = fdir,
-                })
-                local meta = minetest.get_meta(pos)
-                local data = itemstack:get_meta():to_table().fields
-                meta:set_string("data", data.data or "")
-                meta:mark_as_private("data")
-                meta:set_string("label", data.label or "")
-                meta:set_string("channel", data.channel or "")
-                meta:set_string("infotext", label(meta:get_string("label")))
 
-                if not minetest.setting_getbool("creative_mode") then
-                    itemstack:take_item()
-                end
-                digiline:update_autoconnect(pos)
+        on_place = function(itemstack, placer, pointed_thing)
+            -- Standard logic.
+            local plname = placer:get_player_name()
+            local pos = pointed_thing.under
+            local node = minetest.get_node_or_nil(pos)
+            local def = node and minetest.registered_nodes[node.name]
+            if not def or not def.buildable_to then
+                    pos = pointed_thing.above
+                    node = minetest.get_node_or_nil(pos)
+                    def = node and minetest.registered_nodes[node.name]
+                    if not def or not def.buildable_to then return itemstack end
+            end
+            if minetest.is_protected(pos, placer:get_player_name()) then
+                minetest.record_protection_violation(pos, placer:get_player_name())
                 return itemstack
+            end
+            local fdir = minetest.dir_to_facedir(placer:get_look_dir())
+            minetest.set_node(pos, {
+                    name = m.nn(size),
+                    param2 = fdir,
+            })
+
+            -- Set meta from item.
+            local meta = minetest.get_meta(pos)
+            local data = itemstack:get_meta():to_table().fields
+            meta:set_string("data", data.data or "")
+            meta:mark_as_private("data")
+            meta:set_string("label", data.label or "")
+            meta:set_string("channel", data.channel or "")
+            meta:set_string("infotext", label(meta:get_string("label")))
+
+            digiline:update_autoconnect(pos)
+
+            if not minetest.setting_getbool("creative_mode") then
+                itemstack:take_item()
+            end
+            return itemstack
         end,
     })
     if i ~= 1 then
