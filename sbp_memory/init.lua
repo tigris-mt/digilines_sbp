@@ -58,9 +58,21 @@ for i,size in ipairs(m.sizes) do
         stack_max = 1,
         paramtype = "light",
         paramtype2 = "facedir",
-        groups = {dig_immediate = 2},
+        groups = {dig_immediate = 2, sbp_memory = 1},
         selection_box = chip_selbox,
         node_box = chip_nodebox,
+        sbp_set = function(meta, data)
+            local ok, serialized = pcall(minetest.serialize, data)
+            if ok then
+                if #serialized > size * 1024 then
+                    return false, "limit"
+                end
+                meta:set_string("data", serialized)
+                return true
+            else
+                return false, "serialize"
+            end
+        end,
         digiline = {
             receptor = {},
             effector = {
@@ -83,15 +95,11 @@ for i,size in ipairs(m.sizes) do
                             data = data,
                         })
                     elseif msg.type == "set" then
-                        local ok, serialized = pcall(minetest.serialize, msg.data)
+                        local ok, err = minetest.registered_items[m.nn(size)].sbp_set(meta, msg.data)
                         if ok then
-                            if #serialized > size * 1024 then
-                                return reply(pos, {type = "error", error = "limit", id = msg.id})
-                            end
-                            meta:set_string("data", serialized)
                             reply(pos, {type = "setok", id = msg.id})
                         else
-                            reply(pos, {type = "error", error = "serialize", id = msg.id})
+                            reply(pos, {type = "error", error = err, id = msg.id})
                         end
                     end
                 end,
